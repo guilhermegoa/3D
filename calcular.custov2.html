@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Print Manager - Calculadora de Precificação</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f4f8;
+        }
+        
+        .input-group {
+            transition: all 0.3s ease;
+        }
+        
+        .input-group:hover {
+            transform: translateY(-2px);
+        }
+        
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        .result-card {
+            transition: all 0.3s ease;
+        }
+        
+        .result-card:hover {
+            transform: scale(1.02);
+        }
+        
+        .tab {
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            border-bottom: 3px solid #4f46e5;
+            color: #4f46e5;
+        }
+        
+        .tab:hover:not(.active) {
+            border-bottom: 3px solid #818cf8;
+            color: #818cf8;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen py-4 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-white">3D Print Manager</h1>
+                        <p class="text-indigo-100 mt-1">Gerenciamento completo para impressão 3D</p>
+                    </div>
+                    <div class="mt-4 md:mt-0">
+                        <button id="salvarProjetoBtn" class="bg-white text-indigo-600 hover:bg-indigo-50 font-medium py-2 px-4 rounded-md mr-2 transition duration-300 ease-in-out">
+                            <i class="fas fa-save mr-1"></i> Salvar Projeto
+                        </button>
+                        <button id="exportarPDFBtn" class="bg-indigo-800 hover:bg-indigo-900 text-white font-medium py-2 px-4 rounded-md transition duration-300 ease-in-out">
+                            <i class="fas fa-file-pdf mr-1"></i> Exportar PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="bg-white rounded-lg shadow-md mb-6">
+                <div class="flex overflow-x-auto">
+                    <button class="tab active flex-1 py-4 px-6 text-center font-medium" data-tab="calculadora">
+                        <i class="fas fa-calculator mr-2"></i> Calculadora
+                    </button>
+                    <button class="tab flex-1 py-4 px-6 text-center font-medium" data-tab="impressoras">
+                        <i class="fas fa-print mr-2"></i> Impressoras
+                    </button>
+                    <button class="tab flex-1 py-4 px-6 text-center font-medium" data-tab="projetos">
+                        <i class="fas fa-folder-open mr-2"></i> Projetos
+                    </button>
+                    <button class="tab flex-1 py-4 px-6 text-center font-medium" data-tab="dashboard">
+                        <i class="fas fa-chart-pie mr-2"></i> Dashboard
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Tab Content -->
+            <div id="tabContent">
+                <!-- Calculadora Tab -->
+                <div id="calculadoraTab" class="tab-content">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Formulário de Entrada -->
+                        <div class="lg:col-span-2">
+                            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Informações da Peça</h2>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="input-group">
+                                        <label for="nomePeca" class="block text-sm font-medium text-gray-700 mb-1">Nome da Peça</label>
+                                        <input type="text" id="nomePeca" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="clientePeca" class="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
+                                        <input type="text" id="clientePeca" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="tempoProd" class="block text-sm font-medium text-gray-700 mb-1">Tempo de Produção (horas)</label>
+                                        <input type="number" id="tempoProd" min="0" step="0.1" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="pesoPeca" class="block text-sm font-medium text-gray-700 mb-1">Peso da Peça (gramas)</label>
+                                        <input type="number" id="pesoPeca" min="0" step="0.1" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="custoFilamento" class="block text-sm font-medium text-gray-700 mb-1">Custo do Filamento (R$/kg)</label>
+                                        <input type="number" id="custoFilamento" min="0" step="0.01" value="120" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="impressoraSelecionada" class="block text-sm font-medium text-gray-700 mb-1">Impressora</label>
+                                        <select id="impressoraSelecionada" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            <option value="">Selecione uma impressora</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Custos Operacionais</h2>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="input-group">
+                                        <label for="precoKwh" class="block text-sm font-medium text-gray-700 mb-1">
+                                            <span>Preço do KWh (R$)</span>
+                                            <span class="tooltip ml-1 text-gray-500">
+                                                <i class="fas fa-info-circle"></i>
+                                                <span class="tooltiptext">Valor do kilowatt-hora na sua região</span>
+                                            </span>
+                                        </label>
+                                        <input type="number" id="precoKwh" min="0" step="0.01" value="0.80" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="potenciaImpressora" class="block text-sm font-medium text-gray-700 mb-1">Potência da Impressora (Watts)</label>
+                                        <input type="number" id="potenciaImpressora" min="0" step="1" value="150" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="custoEmbalagem" class="block text-sm font-medium text-gray-700 mb-1">Custo com Embalagem (R$)</label>
+                                        <input type="number" id="custoEmbalagem" min="0" step="0.01" value="2.50" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="custoAmortizacao" class="block text-sm font-medium text-gray-700 mb-1">
+                                            <span>Amortização da Impressora (R$/hora)</span>
+                                            <span class="tooltip ml-1 text-gray-500">
+                                                <i class="fas fa-info-circle"></i>
+                                                <span class="tooltiptext">Calculado automaticamente com base na impressora selecionada</span>
+                                            </span>
+                                        </label>
+                                        <input type="number" id="custoAmortizacao" min="0" step="0.01" value="1.50" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Taxas e Markup</h2>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="input-group">
+                                        <label for="taxaFalhas" class="block text-sm font-medium text-gray-700 mb-1">Taxa de Falhas (%)</label>
+                                        <input type="number" id="taxaFalhas" min="0" max="100" step="0.1" value="5" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="taxaImposto" class="block text-sm font-medium text-gray-700 mb-1">Imposto (%)</label>
+                                        <input type="number" id="taxaImposto" min="0" max="100" step="0.1" value="15" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="taxaCartao" class="block text-sm font-medium text-gray-700 mb-1">Taxa de Cartão (%)</label>
+                                        <input type="number" id="taxaCartao" min="0" max="100" step="0.1" value="3.5" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="custoAnuncios" class="block text-sm font-medium text-gray-700 mb-1">Custo com Anúncios (%)</label>
+                                        <input type="number" id="custoAnuncios" min="0" max="100" step="0.1" value="10" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group md:col-span-2">
+                                        <label for="markup" class="block text-sm font-medium text-gray-700 mb-1">
+                                            <span>Markup (multiplicador de lucro)</span>
+                                            <span class="tooltip ml-1 text-gray-500">
+                                                <i class="fas fa-info-circle"></i>
+                                                <span class="tooltiptext">Valor pelo qual o custo total será multiplicado para obter o preço de venda</span>
+                                            </span>
+                                        </label>
+                                        <input type="number" id="markup" min="1" step="0.1" value="2" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-6">
+                                    <button id="calcularBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                                        <i class="fas fa-calculator mr-2"></i> Calcular Preço
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Resumo e Resultados -->
+                        <div class="lg:col-span-1">
+                            <div id="resultadoContainer" class="bg-white rounded-lg shadow-lg p-6 mb-6 sticky top-4">
+                                <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Resumo da Precificação</h2>
+                                
+                                <div id="resultadoPlaceholder" class="text-center py-10 text-gray-500">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    <p class="mt-2">Preencha os dados e clique em "Calcular Preço" para ver o resumo</p>
+                                </div>
+                                
+                                <div id="resultadoContent" class="hidden">
+                                    <div class="mb-4">
+                                        <h3 class="font-medium text-gray-700">Informações Básicas</h3>
+                                        <div class="mt-2 bg-gray-50 p-3 rounded-md">
+                                            <p><span class="font-medium">Peça:</span> <span id="resumoNomePeca">-</span></p>
+                                            <p><span class="font-medium">Cliente:</span> <span id="resumoCliente">-</span></p>
+                                            <p><span class="font-medium">Impressora:</span> <span id="resumoImpressora">-</span></p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h3 class="font-medium text-gray-700">Custos Diretos</h3>
+                                        <div class="mt-2 space-y-1">
+                                            <div class="flex justify-between text-sm">
+                                                <span>Filamento:</span>
+                                                <span id="custoFilamentoResult">R$ 0,00</span>
+                                            </div>
+                                            <div class="flex justify-between text-sm">
+                                                <span>Energia:</span>
+                                                <span id="custoEnergiaResult">R$ 0,00</span>
+                                            </div>
+                                            <div class="flex justify-between text-sm">
+                                                <span>Embalagem:</span>
+                                                <span id="custoEmbalagemResult">R$ 0,00</span>
+                                            </div>
+                                            <div class="flex justify-between text-sm">
+                                                <span>Amortização:</span>
+                                                <span id="custoAmortizacaoResult">R$ 0,00</span>
+                                            </div>
+                                            <div class="flex justify-between font-medium border-t border-gray-200 mt-2 pt-2">
+                                                <span>Total Custos Diretos:</span>
+                                                <span id="custoDiretoTotal">R$ 0,00</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h3 class="font-medium text-gray-700">Taxas e Adicionais</h3>
+                                        <div class="mt-2 space-y-1">
+                                            <div class="flex justify-between text-sm">
+                                                <span>Falhas:</span>
+                                                <span id="custoFalhasResult">R$ 0,00</span>
+                                            </div>
+                                            <div class="flex justify-between text-sm">
+                                                <span>Impostos:</span>
+                                                <span id="custoImpostoResult">R$ 0,00</span>
+                                            </div>
+                                            <div class="flex justify-between text-sm">
+                                                <span>Taxa de Cartão:</span>
+                                                <span id="custoCartaoResult">R$ 0,00</span>
+                                            </div>
+                                            <div class="flex justify-between text-sm">
+                                                <span>Anúncios:</span>
+                                                <span id="custoAnunciosResult">R$ 0,00</span>
+                                            </div>
+                                            <div class="flex justify-between font-medium border-t border-gray-200 mt-2 pt-2">
+                                                <span>Total Taxas:</span>
+                                                <span id="custoTaxasTotal">R$ 0,00</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-6">
+                                        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4">
+                                            <div class="mb-3">
+                                                <h3 class="text-sm font-medium text-gray-700">Custo Total</h3>
+                                                <p class="text-xl font-bold text-indigo-700" id="custoTotalResult">R$ 0,00</p>
+                                            </div>
+                                            
+                                            <div>
+                                                <h3 class="text-sm font-medium text-gray-700">Preço de Venda Sugerido</h3>
+                                                <p class="text-2xl font-bold text-purple-700" id="precoVendaResult">R$ 0,00</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-6">
+                                        <canvas id="custosPieChart" width="400" height="300"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Impressoras Tab -->
+                <div id="impressorasTab" class="tab-content hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Formulário de Cadastro -->
+                        <div class="lg:col-span-1">
+                            <div class="bg-white rounded-lg shadow-lg p-6 mb-6 sticky top-4">
+                                <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Cadastrar Impressora</h2>
+                                
+                                <div class="space-y-4">
+                                    <div class="input-group">
+                                        <label for="nomeImpressora" class="block text-sm font-medium text-gray-700 mb-1">Nome da Impressora</label>
+                                        <input type="text" id="nomeImpressora" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="modeloImpressora" class="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+                                        <input type="text" id="modeloImpressora" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="custoImpressora" class="block text-sm font-medium text-gray-700 mb-1">Custo de Aquisição (R$)</label>
+                                        <input type="number" id="custoImpressora" min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="potenciaWatts" class="block text-sm font-medium text-gray-700 mb-1">Potência (Watts)</label>
+                                        <input type="number" id="potenciaWatts" min="0" step="1" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="vidaUtilHoras" class="block text-sm font-medium text-gray-700 mb-1">
+                                            <span>Vida Útil Estimada (horas)</span>
+                                            <span class="tooltip ml-1 text-gray-500">
+                                                <i class="fas fa-info-circle"></i>
+                                                <span class="tooltiptext">Tempo total estimado de funcionamento da impressora</span>
+                                            </span>
+                                        </label>
+                                        <input type="number" id="vidaUtilHoras" min="0" step="1" value="5000" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="horasUtilizadas" class="block text-sm font-medium text-gray-700 mb-1">Horas já Utilizadas</label>
+                                        <input type="number" id="horasUtilizadas" min="0" step="1" value="0" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    
+                                    <div class="mt-6">
+                                        <button id="salvarImpressoraBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                                            <i class="fas fa-save mr-2"></i> Salvar Impressora
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Lista de Impressoras -->
+                        <div class="lg:col-span-2">
+                            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Impressoras Cadastradas</h2>
+                                
+                                <div id="listaImpressoras" class="space-y-4">
+                                    <div class="text-center py-10 text-gray-500" id="semImpressoras">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                        </svg>
+                                        <p class="mt-2">Nenhuma impressora cadastrada</p>
+                                        <p class="text-sm">Cadastre sua primeira impressora no formulário ao lado</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Projetos Tab -->
+                <div id="projetosTab" class="tab-content hidden">
+                    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Projetos Salvos</h2>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead>
+                                    <tr>
+                                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome da Peça</th>
+                                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Impressora</th>
+                                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Custo Total</th>
+                                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço de Venda</th>
+                                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaProjetos" class="bg-white divide-y divide-gray-200">
+                                    <tr id="semProjetos">
+                                        <td colspan="7" class="px-6 py-10 text-center text-gray-500">
+                                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <p class="mt-2">Nenhum projeto salvo</p>
+                                            <p class="text-sm">Seus projetos salvos aparecerão aqui</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Dashboard Tab -->
+                <div id="dashboardTab" class="tab-content hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-sm font-medium text-gray-500">Total de Projetos</h3>
+                            <p class="text-3xl font-bold text-indigo-600 mt-2" id="totalProjetos">0</p>
+                            <div class="mt-2 text-sm text-gray-600">
+                                <span class="text-green-500"><i class="fas fa-arrow-up"></i> 12%</span> desde o mês passado
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-sm font-medium text-gray-500">Faturamento Total</h3>
+                            <p class="text-3xl font-bold text-purple-600 mt-2" id="faturamentoTotal">R$ 0,00</p>
+                            <div class="mt-2 text-sm text-gray-600">
+                                <span class="text-green-500"><i class="fas fa-arrow-up"></i> 8%</span> desde o mês passado
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-sm font-medium text-gray-500">Horas de Impressão</h3>
+                            <p class="text-3xl font-bold text-blue-600 mt-2" id="horasImpressao">0h</p>
+                            <div class="mt-2 text-sm text-gray-600">
+                                <span class="text-green-500"><i class="fas fa-arrow-up"></i> 15%</span> desde o mês passado
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-sm font-medium text-gray-500">Filamento Utilizado</h3>
+                            <p class="text-3xl font-bold text-emerald-600 mt-2" id="filamentoUtilizado">0kg</p>
+                            <div class="mt-2 text-sm text-gray-600">
+                                <span class="text-green-500"><i class="fas fa-arrow-up"></i> 10%</span> desde o mês passado
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-lg font-medium text-gray-800 mb-4">Projetos por Mês</h3>
+                            <canvas id="projetosPorMesChart" height="300"></canvas>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-lg font-medium text-gray-800 mb-4">Faturamento por Mês</h3>
+                            <canvas id="faturamentoPorMesChart" height="300"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-lg font-medium text-gray-800 mb-4">Uso das Impressoras</h3>
+                            <canvas id="usoImpressorasChart" height="300"></canvas>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-lg font-medium text-gray-800 mb-4">Distribuição de Custos</h3>
+                            <canvas id="distribuicaoCustosChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PDF Preview Modal -->
+    <div id="pdfModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Prévia do PDF</h3>
+                <button id="fecharPdfModal" class="text-gray-500 hover:text-gray-700">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <div id="pdfPreview" class="border p-6 bg-white">
+                    <!-- PDF Content -->
+                    <div class="text-center mb-6">
+                        <h1 class="text-2xl font-bold text-gray-800">Orçamento de Impressão 3D</h1>
+                        <p class="text-gray-600" id="pdfData"></p>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-2">Informações do Projeto</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p><span class="font-medium">Nome da Peça:</span> <span id="pdfNomePeca">-</span></p>
+                                <p><span class="font-medium">Cliente:</span> <span id="pdfCliente">-</span></p>
+                                <p><span class="font-medium">Impressora:</span> <span id="pdfImpressora">-</span></p>
+                            </div>
+                            <div>
+                                <p><span class="font-medium">Tempo de Produção:</span> <span id="pdfTempoProd">-</span> horas</p>
+                                <p><span class="font-medium">Peso da Peça:</span> <span id="pdfPesoPeca">-</span> gramas</p>
+                                <p><span class="font-medium">Data do Orçamento:</span> <span id="pdfDataOrcamento">-</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-2">Detalhamento de Custos</h2>
+                        <table class="min-w-full border border-gray-200">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="py-2 px-4 border-b text-left">Item</th>
+                                    <th class="py-2 px-4 border-b text-right">Valor (R$)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 px-4 border-b">Filamento</td>
+                                    <td class="py-2 px-4 border-b text-right" id="pdfCustoFilamento">0,00</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b">Energia</td>
+                                    <td class="py-2 px-4 border-b text-right" id="pdfCustoEnergia">0,00</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b">Embalagem</td>
+                                    <td class="py-2 px-4 border-b text-right" id="pdfCustoEmbalagem">0,00</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b">Amortização da Impressora</td>
+                                    <td class="py-2 px-4 border-b text-right" id="pdfCustoAmortizacao">0,00</td>
+                                </tr>
+                                <tr class="bg-gray-50">
+                                    <td class="py-2 px-4 border-b font-medium">Total Custos Diretos</td>
+                                    <td class="py-2 px-4 border-b text-right font-medium" id="pdfCustoDiretoTotal">0,00</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b">Taxa de Falhas</td>
+                                    <td class="py-2 px-4 border-b text-right" id="pdfCustoFalhas">0,00</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b">Impostos</td>
+                                    <td class="py-2 px-4 border-b text-right" id="pdfCustoImposto">0,00</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b">Taxa de Cartão</td>
+                                    <td class="py-2 px-4 border-b text-right" id="pdfCustoCartao">0,00</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b">Anúncios</td>
+                                    <td class="py-2 px-4 border-b text-right" id="pdfCustoAnuncios">0,00</td>
+                                </tr>
+                                <tr class="bg-gray-50">
+                                    <td class="py-2 px-4 border-b font-medium">Total Taxas</td>
+                                    <td class="py-2 px-4 border-b text-right font-medium" id="pdfCustoTaxasTotal">0,00</td>
+                                </tr>
+                                <tr class="bg-indigo-50">
+                                    <td class="py-2 px-4 border-b font-medium">Custo Total</td>
+                                    <td class="py-2 px-4 border-b text-right font-medium" id="pdfCustoTotal">0,00</td>
+                                </tr>
+                                <tr class="bg-purple-50">
+                                    <td class="py-3 px-4 font-bold">Preço de Venda</td>
+                                    <td class="py-3 px-4 text-right font-bold" id="pdfPrecoVenda">0,00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-8 text-sm text-gray-600">
+                        <p>Este orçamento tem validade de 15 dias a partir da data de emissão.</p>
+                        <p>O prazo de entrega será combinado após a aprovação do orçamento.</p>
+                        <p>Forma de pagamento: 50% de entrada e 50% na entrega.</p>
+                    </div>
+                    
+                    <div class="mt-8 pt-8 border-t border-gray-200 text-center">
+                        <p class="text-gray-600">Obrigado pela preferência!</p>
+                        <p class="font-medium">3D Print Manager</p>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end">
+                    <button id="downloadPdfBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                        <i class="fas fa-download mr-2"></i> Download PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicialização do banco de dados
+            let db = {
+                impressoras: JSON.parse(localStorage.getItem('impressoras')) || [],
+                projetos: JSON.parse(localStorage.getItem('projetos')) || []
+            };
+            
+            // Variáveis globais
+            let custosPieChart = null;
+            let projetosPorMesChart = null;
+            let faturamentoPorMesChart = null;
+            let usoImpressorasChart = null;
+            let distribuicaoCustosChart = null;
+            let resultadosCalculados = null;
+            
+            // Elementos DOM
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            const calcularBtn = document.getElementById('calcularBtn');
+            const salvarProjetoBtn = document.getElementById('salvarProjetoBtn');
+            const exportarPDFBtn = document.getElementById('exportarPDFBtn');
+            const salvarImpressoraBtn = document.getElementById('salvarImpressoraBtn');
+            const fecharPdfModal = document.getElementById('fecharPdfModal');
+            const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+            const pdfModal = document.getElementById('pdfModal');
+            
+            // Inicialização
+            atualizarListaImpressoras();
+            atualizarSelectImpressoras();
+            atualizarTabelaProjetos();
+            atualizarDashboard();
+            
+            // Event Listeners
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+                    mudarTab(tabId);
+                });
+            });
+            
+            calcularBtn.addEventListener('click', calcularPreco);
+            salvarProjetoBtn.addEventListener('click', salvarProjeto);
+            exportarPDFBtn.addEventListener('click', mostrarPreviewPDF);
+            salvarImpressoraBtn.addEventListener('click', salvarImpressora);
+            fecharPdfModal.addEventListener('click', () => pdfModal.classList.add('hidden'));
+            downloadPdfBtn.addEventListener('click', downloadPDF);
+            
+            document.getElementById('impressoraSelecionada').addEventListener('change', function() {
+                const impressoraId = this.value;
+                if (impressoraId) {
+                    const impressora = db.impressoras.find(imp => imp.id === impressoraId);
+                    if (impressora) {
+                        document.getElementById('potenciaImpressora').value = impressora.potenciaWatts;
+                        calcularAmortizacao(impressora);
+                    }
+                }
+            });
+            
+            // Funções
+            function mudarTab(tabId) {
+                tabs.forEach(tab => {
+                    if (tab.getAttribute('data-tab') === tabId) {
+                        tab.classList.add('active');
+                    } else {
+                        tab.classList.remove('active');
+                    }
+                });
+                
+                tabContents.forEach(content => {
+                    if (content.id === tabId + 'Tab') {
+                        content.classList.remove('hidden');
+                    } else {
+                        content.classList.add('hidden');
+                    }
+                });
+                
+                // Atualizar gráficos se estiver na tab dashboard
+                if (tabId === 'dashboard') {
+                    atualizarDashboard();
+                }
+            }
+            
+            function formatarMoeda(valor) {
+                return 'R$ ' + valor.toFixed(2).replace('.', ',');
+            }
+            
+            function calcularPreco() {
+                // Obter valores dos inputs
+                const nomePeca = document.getElementById('nomePeca').value;
+                const clientePeca = document.getElementById('clientePeca').value;
+                const tempoProd = parseFloat(document.getElementById('tempoProd').value) || 0;
+                const pesoPeca = parseFloat(document.getElementById('pesoPeca').value) || 0;
+                const custoFilamento = parseFloat(document.getElementById('custoFilamento').value) || 0;
+                const precoKwh = parseFloat(document.getElementById('precoKwh').value) || 0;
+                const potenciaImpressora = parseFloat(document.getElementById('potenciaImpressora').value) || 0;
+                const custoEmbalagem = parseFloat(document.getElementById('custoEmbalagem').value) || 0;
+                const custoAmortizacao = parseFloat(document.getElementById('custoAmortizacao').value) || 0;
+                const taxaFalhas = parseFloat(document.getElementById('taxaFalhas').value) || 0;
+                const taxaImposto = parseFloat(document.getElementById('taxaImposto').value) || 0;
+                const taxaCartao = parseFloat(document.getElementById('taxaCartao').value) || 0;
+                const custoAnuncios = parseFloat(document.getElementById('custoAnuncios').value) || 0;
+                const markup = parseFloat(document.getElementById('markup').value) || 1;
+                const impressoraSelecionada = document.getElementById('impressoraSelecionada').value;
+                
+                // Validar inputs
+                if (!nomePeca || tempoProd <= 0 || pesoPeca <= 0) {
+                    alert('Por favor, preencha todos os campos obrigatórios corretamente.');
+                    return;
+                }
+                
+                // Calcular custos diretos
+                const custoFilamentoTotal = (pesoPeca / 1000) * custoFilamento;
+                const custoEnergia = (potenciaImpressora / 1000) * tempoProd * precoKwh;
+                const custoAmortizacaoTotal = custoAmortizacao * tempoProd;
+                
+                const custoDireto = custoFilamentoTotal + custoEnergia + custoEmbalagem + custoAmortizacaoTotal;
+                
+                // Calcular taxas
+                const custoFalhas = custoDireto * (taxaFalhas / 100);
+                const custoBase = custoDireto + custoFalhas;
+                
+                const custoImposto = custoBase * (taxaImposto / 100);
+                const custoCartao = custoBase * (taxaCartao / 100);
+                const custoAnunciosTotal = custoBase * (custoAnuncios / 100);
+                
+                const custoTaxasTotal = custoFalhas + custoImposto + custoCartao + custoAnunciosTotal;
+                
+                // Calcular custo total e preço de venda
+                const custoTotal = custoDireto + custoTaxasTotal;
+                const precoVenda = custoTotal * markup;
+                
+                // Salvar resultados para uso posterior
+                resultadosCalculados = {
+                    nomePeca,
+                    clientePeca,
+                    impressoraSelecionada,
+                    tempoProd,
+                    pesoPeca,
+                    custoFilamentoTotal,
+                    custoEnergia,
+                    custoEmbalagem,
+                    custoAmortizacaoTotal,
+                    custoDireto,
+                    custoFalhas,
+                    custoImposto,
+                    custoCartao,
+                    custoAnunciosTotal,
+                    custoTaxasTotal,
+                    custoTotal,
+                    precoVenda,
+                    markup
+                };
+                
+                // Exibir resultados
+                document.getElementById('resumoNomePeca').textContent = nomePeca;
+                document.getElementById('resumoCliente').textContent = clientePeca || '-';
+                
+                const impressora = db.impressoras.find(imp => imp.id === impressoraSelecionada);
+                document.getElementById('resumoImpressora').textContent = impressora ? impressora.nome : '-';
+                
+                document.getElementById('custoFilamentoResult').textContent = formatarMoeda(custoFilamentoTotal);
+                document.getElementById('custoEnergiaResult').textContent = formatarMoeda(custoEnergia);
+                document.getElementById('custoEmbalagemResult').textContent = formatarMoeda(custoEmbalagem);
+                document.getElementById('custoAmortizacaoResult').textContent = formatarMoeda(custoAmortizacaoTotal);
+                document.getElementById('custoDiretoTotal').textContent = formatarMoeda(custoDireto);
+                
+                document.getElementById('custoFalhasResult').textContent = formatarMoeda(custoFalhas);
+                document.getElementById('custoImpostoResult').textContent = formatarMoeda(custoImposto);
+                document.getElementById('custoCartaoResult').textContent = formatarMoeda(custoCartao);
+                document.getElementById('custoAnunciosResult').textContent = formatarMoeda(custoAnunciosTotal);
+                document.getElementById('custoTaxasTotal').textContent = formatarMoeda(custoTaxasTotal);
+                
+                document.getElementById('custoTotalResult').textContent = formatarMoeda(custoTotal);
+                document.getElementById('precoVendaResult').textContent = formatarMoeda(precoVenda);
+                
+                // Mostrar resultados
+                document.getElementById('resultadoPlaceholder').classList.add('hidden');
+                document.getElementById('resultadoContent').classList.remove('hidden');
+                
+                // Criar gráfico de pizza
+                criarGraficoCustos(custoFilamentoTotal, custoEnergia, custoEmbalagem, custoAmortizacaoTotal, custoTaxasTotal);
+            }
+            
+            function criarGraficoCustos(filamento, energia, embalagem, amortizacao, taxas) {
+                const ctx = document.getElementById('custosPieChart').getContext('2d');
+                
+                if (custosPieChart) {
+                    custosPieChart.destroy();
+                }
+                
+                custosPieChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Filamento', 'Energia', 'Embalagem', 'Amortização', 'Taxas'],
+                        datasets: [{
+                            data: [filamento, energia, embalagem, amortizacao, taxas],
+                            backgroundColor: [
+                                '#4f46e5', // indigo
+                                '#8b5cf6', // violet
+                                '#ec4899', // pink
+                                '#06b6d4', // cyan
+                                '#10b981'  // emerald
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Distribuição de Custos'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function salvarImpressora() {
+                const nomeImpressora = document.getElementById('nomeImpressora').value;
+                const modeloImpressora = document.getElementById('modeloImpressora').value;
+                const custoImpressora = parseFloat(document.getElementById('custoImpressora').value) || 0;
+                const potenciaWatts = parseFloat(document.getElementById('potenciaWatts').value) || 0;
+                const vidaUtilHoras = parseFloat(document.getElementById('vidaUtilHoras').value) || 0;
+                const horasUtilizadas = parseFloat(document.getElementById('horasUtilizadas').value) || 0;
+                
+                if (!nomeImpressora || !modeloImpressora || custoImpressora <= 0 || vidaUtilHoras <= 0) {
+                    alert('Por favor, preencha todos os campos obrigatórios corretamente.');
+                    return;
+                }
+                
+                const novaImpressora = {
+                    id: Date.now().toString(),
+                    nome: nomeImpressora,
+                    modelo: modeloImpressora,
+                    custo: custoImpressora,
+                    potenciaWatts: potenciaWatts,
+                    vidaUtilHoras: vidaUtilHoras,
+                    horasUtilizadas: horasUtilizadas,
+                    dataCadastro: new Date().toISOString()
+                };
+                
+                db.impressoras.push(novaImpressora);
+                localStorage.setItem('impressoras', JSON.stringify(db.impressoras));
+                
+                // Limpar formulário
+                document.getElementById('nomeImpressora').value = '';
+                document.getElementById('modeloImpressora').value = '';
+                document.getElementById('custoImpressora').value = '';
+                document.getElementById('potenciaWatts').value = '';
+                document.getElementById('vidaUtilHoras').value = '5000';
+                document.getElementById('horasUtilizadas').value = '0';
+                
+                // Atualizar lista de impressoras
+                atualizarListaImpressoras();
+                atualizarSelectImpressoras();
+                
+                alert('Impressora cadastrada com sucesso!');
+            }
+            
+            function atualizarListaImpressoras() {
+                const listaImpressoras = document.getElementById('listaImpressoras');
+                const semImpressoras = document.getElementById('semImpressoras');
+                
+                // Limpar lista atual
+                while (listaImpressoras.firstChild && listaImpressoras.firstChild !== semImpressoras) {
+                    listaImpressoras.removeChild(listaImpressoras.firstChild);
+                }
+                
+                if (db.impressoras.length === 0) {
+                    semImpressoras.classList.remove('hidden');
+                    return;
+                }
+                
+                semImpressoras.classList.add('hidden');
+                
+                // Adicionar impressoras à lista
+                db.impressoras.forEach(impressora => {
+                    const porcentagemUsada = (impressora.horasUtilizadas / impressora.vidaUtilHoras) * 100;
+                    const horasRestantes = impressora.vidaUtilHoras - impressora.horasUtilizadas;
+                    
+                    const impressoraCard = document.createElement('div');
+                    impressoraCard.className = 'bg-white border rounded-lg shadow-sm p-4';
+                    impressoraCard.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">${impressora.nome}</h3>
+                                <p class="text-sm text-gray-600">Modelo: ${impressora.modelo}</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button class="text-indigo-600 hover:text-indigo-800" onclick="editarImpressora('${impressora.id}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800" onclick="excluirImpressora('${impressora.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>Vida útil:</span>
+                                <span>${impressora.horasUtilizadas} de ${impressora.vidaUtilHoras} horas (${horasRestantes} restantes)</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="h-2.5 rounded-full ${porcentagemUsada > 75 ? 'bg-red-600' : porcentagemUsada > 50 ? 'bg-yellow-400' : 'bg-green-500'}" style="width: ${porcentagemUsada}%"></div>
+                            </div>
+                        </div>
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                                <span class="text-gray-600">Custo:</span>
+                                <span class="font-medium">${formatarMoeda(impressora.custo)}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Potência:</span>
+                                <span class="font-medium">${impressora.potenciaWatts}W</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Amortização/hora:</span>
+                                <span class="font-medium">${formatarMoeda(impressora.custo / impressora.vidaUtilHoras)}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Data cadastro:</span>
+                                <span class="font-medium">${new Date(impressora.dataCadastro).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    listaImpressoras.insertBefore(impressoraCard, semImpressoras);
+                });
+            }
+            
+            function atualizarSelectImpressoras() {
+                const selectImpressora = document.getElementById('impressoraSelecionada');
+                
+                // Limpar opções atuais
+                while (selectImpressora.options.length > 1) {
+                    selectImpressora.remove(1);
+                }
+                
+                // Adicionar impressoras ao select
+                db.impressoras.forEach(impressora => {
+                    const option = document.createElement('option');
+                    option.value = impressora.id;
+                    option.textContent = `${impressora.nome} (${impressora.modelo})`;
+                    selectImpressora.appendChild(option);
+                });
+            }
+            
+            function calcularAmortizacao(impressora) {
+                if (impressora) {
+                    const amortizacaoHora = impressora.custo / impressora.vidaUtilHoras;
+                    document.getElementById('custoAmortizacao').value = amortizacaoHora.toFixed(2);
+                }
+            }
+            
+            function salvarProjeto() {
+                if (!resultadosCalculados) {
+                    alert('Por favor, calcule o preço antes de salvar o projeto.');
+                    return;
+                }
+                
+                const impressoraSelecionada = document.getElementById('impressoraSelecionada').value;
+                const impressora = db.impressoras.find(imp => imp.id === impressoraSelecionada);
+                
+                const novoProjeto = {
+                    id: Date.now().toString(),
+                    ...resultadosCalculados,
+                    data: new Date().toISOString(),
+                    impressoraId: impressoraSelecionada,
+                    impressoraNome: impressora ? impressora.nome : 'Não especificada'
+                };
+                
+                db.projetos.push(novoProjeto);
+                localStorage.setItem('projetos', JSON.stringify(db.projetos));
+                
+                // Atualizar horas utilizadas da impressora
+                if (impressora) {
+                    impressora.horasUtilizadas += resultadosCalculados.tempoProd;
+                    localStorage.setItem('impressoras', JSON.stringify(db.impressoras));
+                    atualizarListaImpressoras();
+                }
+                
+                atualizarTabelaProjetos();
+                atualizarDashboard();
+                
+                alert('Projeto salvo com sucesso!');
+            }
+            
+            function atualizarTabelaProjetos() {
+                const tabelaProjetos = document.getElementById('tabelaProjetos');
+                const semProjetos = document.getElementById('semProjetos');
+                
+                // Limpar tabela atual
+                while (tabelaProjetos.firstChild && tabelaProjetos.firstChild !== semProjetos) {
+                    tabelaProjetos.removeChild(tabelaProjetos.firstChild);
+                }
+                
+                if (db.projetos.length === 0) {
+                    semProjetos.classList.remove('hidden');
+                    return;
+                }
+                
+                semProjetos.classList.add('hidden');
+                
+                // Adicionar projetos à tabela
+                db.projetos.forEach(projeto => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">${projeto.nomePeca}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${projeto.clientePeca || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${projeto.impressoraNome}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${formatarMoeda(projeto.custoTotal)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${formatarMoeda(projeto.precoVenda)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${new Date(projeto.data).toLocaleDateString()}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <button class="text-indigo-600 hover:text-indigo-900 mr-3" onclick="carregarProjeto('${projeto.id}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="text-red-600 hover:text-red-900 mr-3" onclick="excluirProjeto('${projeto.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="text-green-600 hover:text-green-900" onclick="exportarProjetoPDF('${projeto.id}')">
+                                <i class="fas fa-file-pdf"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    tabelaProjetos.insertBefore(tr, semProjetos);
+                });
+            }
+            
+            function atualizarDashboard() {
+                if (db.projetos.length === 0) {
+                    document.getElementById('totalProjetos').textContent = '0';
+                    document.getElementById('faturamentoTotal').textContent = 'R$ 0,00';
+                    document.getElementById('horasImpressao').textContent = '0h';
+                    document.getElementById('filamentoUtilizado').textContent = '0kg';
+                    return;
+                }
+                
+                // Calcular estatísticas
+                const totalProjetos = db.projetos.length;
+                const faturamentoTotal = db.projetos.reduce((total, projeto) => total + projeto.precoVenda, 0);
+                const horasImpressao = db.projetos.reduce((total, projeto) => total + projeto.tempoProd, 0);
+                const filamentoUtilizado = db.projetos.reduce((total, projeto) => total + projeto.pesoPeca, 0) / 1000;
+                
+                document.getElementById('totalProjetos').textContent = totalProjetos;
+                document.getElementById('faturamentoTotal').textContent = formatarMoeda(faturamentoTotal);
+                document.getElementById('horasImpressao').textContent = horasImpressao.toFixed(1) + 'h';
+                document.getElementById('filamentoUtilizado').textContent = filamentoUtilizado.toFixed(2) + 'kg';
+                
+                // Criar gráficos
+                criarGraficoProjetosPorMes();
+                criarGraficoFaturamentoPorMes();
+                criarGraficoUsoImpressoras();
+                criarGraficoDistribuicaoCustos();
+            }
+            
+            function criarGraficoProjetosPorMes() {
+                const ctx = document.getElementById('projetosPorMesChart').getContext('2d');
+                
+                // Agrupar projetos por mês
+                const projetosPorMes = {};
+                const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                
+                db.projetos.forEach(projeto => {
+                    const data = new Date(projeto.data);
+                    const mesAno = `${meses[data.getMonth()]} ${data.getFullYear()}`;
+                    
+                    if (!projetosPorMes[mesAno]) {
+                        projetosPorMes[mesAno] = 0;
+                    }
+                    
+                    projetosPorMes[mesAno]++;
+                });
+                
+                const labels = Object.keys(projetosPorMes).sort((a, b) => {
+                    const [mesA, anoA] = a.split(' ');
+                    const [mesB, anoB] = b.split(' ');
+                    
+                    if (anoA !== anoB) {
+                        return anoA - anoB;
+                    }
+                    
+                    return meses.indexOf(mesA) - meses.indexOf(mesB);
+                });
+                
+                const data = labels.map(label => projetosPorMes[label]);
+                
+                if (projetosPorMesChart) {
+                    projetosPorMesChart.destroy();
+                }
+                
+                projetosPorMesChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Projetos',
+                            data: data,
+                            backgroundColor: '#4f46e5',
+                            borderColor: '#4338ca',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function criarGraficoFaturamentoPorMes() {
+                const ctx = document.getElementById('faturamentoPorMesChart').getContext('2d');
+                
+                // Agrupar faturamento por mês
+                const faturamentoPorMes = {};
+                const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                
+                db.projetos.forEach(projeto => {
+                    const data = new Date(projeto.data);
+                    const mesAno = `${meses[data.getMonth()]} ${data.getFullYear()}`;
+                    
+                    if (!faturamentoPorMes[mesAno]) {
+                        faturamentoPorMes[mesAno] = 0;
+                    }
+                    
+                    faturamentoPorMes[mesAno] += projeto.precoVenda;
+                });
+                
+                const labels = Object.keys(faturamentoPorMes).sort((a, b) => {
+                    const [mesA, anoA] = a.split(' ');
+                    const [mesB, anoB] = b.split(' ');
+                    
+                    if (anoA !== anoB) {
+                        return anoA - anoB;
+                    }
+                    
+                    return meses.indexOf(mesA) - meses.indexOf(mesB);
+                });
+                
+                const data = labels.map(label => faturamentoPorMes[label]);
+                
+                if (faturamentoPorMesChart) {
+                    faturamentoPorMesChart.destroy();
+                }
+                
+                faturamentoPorMesChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Faturamento (R$)',
+                            data: data,
+                            backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                            borderColor: '#8b5cf6',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function criarGraficoUsoImpressoras() {
+                const ctx = document.getElementById('usoImpressorasChart').getContext('2d');
+                
+                // Agrupar uso por impressora
+                const usoPorImpressora = {};
+                
+                db.projetos.forEach(projeto => {
+                    if (!projeto.impressoraNome) return;
+                    
+                    if (!usoPorImpressora[projeto.impressoraNome]) {
+                        usoPorImpressora[projeto.impressoraNome] = 0;
+                    }
+                    
+                    usoPorImpressora[projeto.impressoraNome] += projeto.tempoProd;
+                });
+                
+                const labels = Object.keys(usoPorImpressora);
+                const data = labels.map(label => usoPorImpressora[label]);
+                
+                if (usoImpressorasChart) {
+                    usoImpressorasChart.destroy();
+                }
+                
+                usoImpressorasChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: [
+                                '#4f46e5',
+                                '#8b5cf6',
+                                '#ec4899',
+                                '#06b6d4',
+                                '#10b981',
+                                '#f59e0b',
+                                '#ef4444'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Horas de Uso por Impressora'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function criarGraficoDistribuicaoCustos() {
+                const ctx = document.getElementById('distribuicaoCustosChart').getContext('2d');
+                
+                // Calcular distribuição média de custos
+                let totalFilamento = 0;
+                let totalEnergia = 0;
+                let totalEmbalagem = 0;
+                let totalAmortizacao = 0;
+                let totalTaxas = 0;
+                
+                db.projetos.forEach(projeto => {
+                    totalFilamento += projeto.custoFilamentoTotal || 0;
+                    totalEnergia += projeto.custoEnergia || 0;
+                    totalEmbalagem += projeto.custoEmbalagem || 0;
+                    totalAmortizacao += projeto.custoAmortizacaoTotal || 0;
+                    totalTaxas += projeto.custoTaxasTotal || 0;
+                });
+                
+                if (distribuicaoCustosChart) {
+                    distribuicaoCustosChart.destroy();
+                }
+                
+                distribuicaoCustosChart = new Chart(ctx, {
+                    type: 'polarArea',
+                    data: {
+                        labels: ['Filamento', 'Energia', 'Embalagem', 'Amortização', 'Taxas'],
+                        datasets: [{
+                            data: [totalFilamento, totalEnergia, totalEmbalagem, totalAmortizacao, totalTaxas],
+                            backgroundColor: [
+                                '#4f46e5', // indigo
+                                '#8b5cf6', // violet
+                                '#ec4899', // pink
+                                '#06b6d4', // cyan
+                                '#10b981'  // emerald
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Distribuição de Custos'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function mostrarPreviewPDF() {
+                if (!resultadosCalculados) {
+                    alert('Por favor, calcule o preço antes de exportar o PDF.');
+                    return;
+                }
+                
+                // Preencher dados no preview do PDF
+                const data = new Date();
+                document.getElementById('pdfData').textContent = data.toLocaleDateString();
+                document.getElementById('pdfDataOrcamento').textContent = data.toLocaleDateString();
+                
+                document.getElementById('pdfNomePeca').textContent = resultadosCalculados.nomePeca;
+                document.getElementById('pdfCliente').textContent = resultadosCalculados.clientePeca || '-';
+                
+                const impressora = db.impressoras.find(imp => imp.id === resultadosCalculados.impressoraSelecionada);
+                document.getElementById('pdfImpressora').textContent = impressora ? impressora.nome : '-';
+                
+                document.getElementById('pdfTempoProd').textContent = resultadosCalculados.tempoProd;
+                document.getElementById('pdfPesoPeca').textContent = resultadosCalculados.pesoPeca;
+                
+                document.getElementById('pdfCustoFilamento').textContent = resultadosCalculados.custoFilamentoTotal.toFixed(2);
+                document.getElementById('pdfCustoEnergia').textContent = resultadosCalculados.custoEnergia.toFixed(2);
+                document.getElementById('pdfCustoEmbalagem').textContent = resultadosCalculados.custoEmbalagem.toFixed(2);
+                document.getElementById('pdfCustoAmortizacao').textContent = resultadosCalculados.custoAmortizacaoTotal.toFixed(2);
+                document.getElementById('pdfCustoDiretoTotal').textContent = resultadosCalculados.custoDireto.toFixed(2);
+                
+                document.getElementById('pdfCustoFalhas').textContent = resultadosCalculados.custoFalhas.toFixed(2);
+                document.getElementById('pdfCustoImposto').textContent = resultadosCalculados.custoImposto.toFixed(2);
+                document.getElementById('pdfCustoCartao').textContent = resultadosCalculados.custoCartao.toFixed(2);
+                document.getElementById('pdfCustoAnuncios').textContent = resultadosCalculados.custoAnunciosTotal.toFixed(2);
+                document.getElementById('pdfCustoTaxasTotal').textContent = resultadosCalculados.custoTaxasTotal.toFixed(2);
+                
+                document.getElementById('pdfCustoTotal').textContent = resultadosCalculados.custoTotal.toFixed(2);
+                document.getElementById('pdfPrecoVenda').textContent = resultadosCalculados.precoVenda.toFixed(2);
+                
+                // Mostrar modal
+                pdfModal.classList.remove('hidden');
+            }
+            
+            function downloadPDF() {
+                const { jsPDF } = window.jspdf;
+                
+                html2canvas(document.getElementById('pdfPreview')).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgProps = pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`orcamento_${resultadosCalculados.nomePeca.replace(/\s+/g, '_')}.pdf`);
+                });
+            }
+            
+            // Funções globais para acesso via onclick
+            window.editarImpressora = function(id) {
+                const impressora = db.impressoras.find(imp => imp.id === id);
+                if (!impressora) return;
+                
+                document.getElementById('nomeImpressora').value = impressora.nome;
+                document.getElementById('modeloImpressora').value = impressora.modelo;
+                document.getElementById('custoImpressora').value = impressora.custo;
+                document.getElementById('potenciaWatts').value = impressora.potenciaWatts;
+                document.getElementById('vidaUtilHoras').value = impressora.vidaUtilHoras;
+                document.getElementById('horasUtilizadas').value = impressora.horasUtilizadas;
+                
+                // Mudar para a tab de impressoras
+                mudarTab('impressoras');
+                
+                // Modificar o botão para atualizar
+                const salvarBtn = document.getElementById('salvarImpressoraBtn');
+                salvarBtn.textContent = 'Atualizar Impressora';
+                salvarBtn.dataset.editId = id;
+                
+                // Substituir o evento de clique
+                salvarBtn.onclick = function() {
+                    const nomeImpressora = document.getElementById('nomeImpressora').value;
+                    const modeloImpressora = document.getElementById('modeloImpressora').value;
+                    const custoImpressora = parseFloat(document.getElementById('custoImpressora').value) || 0;
+                    const potenciaWatts = parseFloat(document.getElementById('potenciaWatts').value) || 0;
+                    const vidaUtilHoras = parseFloat(document.getElementById('vidaUtilHoras').value) || 0;
+                    const horasUtilizadas = parseFloat(document.getElementById('horasUtilizadas').value) || 0;
+                    
+                    if (!nomeImpressora || !modeloImpressora || custoImpressora <= 0 || vidaUtilHoras <= 0) {
+                        alert('Por favor, preencha todos os campos obrigatórios corretamente.');
+                        return;
+                    }
+                    
+                    // Atualizar impressora
+                    const index = db.impressoras.findIndex(imp => imp.id === id);
+                    if (index !== -1) {
+                        db.impressoras[index] = {
+                            ...db.impressoras[index],
+                            nome: nomeImpressora,
+                            modelo: modeloImpressora,
+                            custo: custoImpressora,
+                            potenciaWatts: potenciaWatts,
+                            vidaUtilHoras: vidaUtilHoras,
+                            horasUtilizadas: horasUtilizadas
+                        };
+                        
+                        localStorage.setItem('impressoras', JSON.stringify(db.impressoras));
+                        
+                        // Limpar formulário
+                        document.getElementById('nomeImpressora').value = '';
+                        document.getElementById('modeloImpressora').value = '';
+                        document.getElementById('custoImpressora').value = '';
+                        document.getElementById('potenciaWatts').value = '';
+                        document.getElementById('vidaUtilHoras').value = '5000';
+                        document.getElementById('horasUtilizadas').value = '0';
+                        
+                        // Restaurar botão
+                        salvarBtn.textContent = 'Salvar Impressora';
+                        delete salvarBtn.dataset.editId;
+                        salvarBtn.onclick = salvarImpressora;
+                        
+                        // Atualizar lista de impressoras
+                        atualizarListaImpressoras();
+                        atualizarSelectImpressoras();
+                        
+                        alert('Impressora atualizada com sucesso!');
+                    }
+                };
+            };
+            
+            window.excluirImpressora = function(id) {
+                if (!confirm('Tem certeza que deseja excluir esta impressora?')) {
+                    return;
+                }
+                
+                db.impressoras = db.impressoras.filter(imp => imp.id !== id);
+                localStorage.setItem('impressoras', JSON.stringify(db.impressoras));
+                
+                atualizarListaImpressoras();
+                atualizarSelectImpressoras();
+                
+                alert('Impressora excluída com sucesso!');
+            };
+            
+            window.carregarProjeto = function(id) {
+                const projeto = db.projetos.find(p => p.id === id);
+                if (!projeto) return;
+                
+                document.getElementById('nomePeca').value = projeto.nomePeca;
+                document.getElementById('clientePeca').value = projeto.clientePeca || '';
+                document.getElementById('tempoProd').value = projeto.tempoProd;
+                document.getElementById('pesoPeca').value = projeto.pesoPeca;
+                document.getElementById('impressoraSelecionada').value = projeto.impressoraId || '';
+                
+                // Mudar para a tab de calculadora
+                mudarTab('calculadora');
+                
+                // Calcular preço
+                calcularBtn.click();
+            };
+            
+            window.excluirProjeto = function(id) {
+                if (!confirm('Tem certeza que deseja excluir este projeto?')) {
+                    return;
+                }
+                
+                db.projetos = db.projetos.filter(p => p.id !== id);
+                localStorage.setItem('projetos', JSON.stringify(db.projetos));
+                
+                atualizarTabelaProjetos();
+                atualizarDashboard();
+                
+                alert('Projeto excluído com sucesso!');
+            };
+            
+            window.exportarProjetoPDF = function(id) {
+                const projeto = db.projetos.find(p => p.id === id);
+                if (!projeto) return;
+                
+                resultadosCalculados = projeto;
+                mostrarPreviewPDF();
+            };
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'964bc10c038be2b7',t:'MTc1MzQ0NzUyMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
