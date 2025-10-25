@@ -1074,6 +1074,7 @@
                 // Adicionar projetos à tabela
                 db.projetos.forEach(projeto => {
                     const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-100 cursor-pointer';
                     tr.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap">${projeto.nomePeca}</td>
                         <td class="px-6 py-4 whitespace-nowrap">${projeto.clientePeca || '-'}</td>
@@ -1093,7 +1094,24 @@
                             </button>
                         </td>
                     `;
-                    
+
+                    // Tornar a linha clicável para abrir o projeto na calculadora.
+                    // Evita disparar quando o clique for em um dos botões (editar/excluir/pdf).
+                    tr.addEventListener('click', function(e) {
+                        if (e.target.closest('button')) return; // clique em botão -> não propagar
+                        window.carregarProjeto && window.carregarProjeto(projeto.id);
+                    });
+
+                    // Acessibilidade: permitir ativar com Enter quando a linha estiver focada
+                    tr.setAttribute('role', 'button');
+                    tr.tabIndex = 0;
+                    tr.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            window.carregarProjeto && window.carregarProjeto(projeto.id);
+                        }
+                    });
+
                     tabelaProjetos.insertBefore(tr, semProjetos);
                 });
             }
