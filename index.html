@@ -802,6 +802,7 @@
                     impressoraSelecionada,
                     tempoProd,
                     pesoPeca,
+                    custoFilamento,
                     custoFilamentoTotal,
                     custoEnergia,
                     custoEmbalagem,
@@ -1521,6 +1522,21 @@
                 document.getElementById('tempoProd').value = projeto.tempoProd;
                 document.getElementById('pesoPeca').value = projeto.pesoPeca;
                 document.getElementById('impressoraSelecionada').value = projeto.impressoraId || '';
+                document.getElementById('custoFilamento').value = projeto.custoFilamento;
+                
+                // Buscar impressora associada e preencher campos existentes na calculadora.
+                const impressoraParaCarregar = db.impressoras.find(imp => imp.id === projeto.impressoraId);
+                if (impressoraParaCarregar) {
+                    const potenciaInput = document.getElementById('potenciaImpressora');
+                    if (potenciaInput) potenciaInput.value = impressoraParaCarregar.potenciaWatts ?? '150';
+                    
+                    calcularAmortizacao(impressoraParaCarregar);
+                } else {
+                    const potenciaInput = document.getElementById('potenciaImpressora');
+                    if (potenciaInput) potenciaInput.value = '1';
+                    const custoAmortInput = document.getElementById('custoAmortizacao');
+                    if (custoAmortInput) custoAmortInput.value = '1';
+                }
                 
                 // Mudar para a tab de calculadora
                 mudarTab('calculadora');
