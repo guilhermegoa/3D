@@ -1164,13 +1164,24 @@
                         <td class="px-6 py-4 whitespace-nowrap">${formatarMoeda(projeto.precoVenda)}</td>
                         <td class="px-6 py-4 whitespace-nowrap">${new Date(projeto.data).toLocaleDateString()}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <button class="text-indigo-600 hover:text-indigo-900 mr-3" onclick="carregarProjeto('${projeto.id}')">
+                            <button class="text-indigo-600 hover:text-indigo-900 mr-3" onclick="carregarProjeto('${projeto.id}')" aria-label="Editar projeto">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="text-red-600 hover:text-red-900 mr-3" onclick="excluirProjeto('${projeto.id}')">
-                                <i class="fas fa-trash"></i>
+                            <button class="text-red-600 hover:text-red-900 mr-3" onclick="excluirProjeto('${projeto.id}')" aria-label="Excluir projeto">
+                                <!-- Inline SVG trash icon to avoid relying on external icon fonts -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H3a1 1 0 100 2h14a1 1 0 100-2h-2V3a1 1 0 00-1-1H6zm2 6a1 1 0 10-2 0v7a1 1 0 102 0V8zm4 0a1 1 0 10-2 0v7a1 1 0 102 0V8z" clip-rule="evenodd" />
+                                </svg>
                             </button>
-                            <button class="text-green-600 hover:text-green-900" onclick="exportarProjetoPDF('${projeto.id}')">
+                            <button class="text-yellow-600 hover:text-yellow-800 mr-3" onclick="mostrarRelatorioCusto('${projeto.id}')" aria-label="Relatório de custo">
+                                <!-- Inline SVG: relatório / gráfico -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v6H3a1 1 0 01-1-1v-5z" />
+                                    <path d="M7 7a1 1 0 011-1h2a1 1 0 011 1v10H8a1 1 0 01-1-1V7z" opacity=".9" />
+                                    <path d="M12 4a1 1 0 011-1h2a1 1 0 011 1v13h-4V4z" opacity=".7" />
+                                </svg>
+                            </button>
+                            <button class="text-green-600 hover:text-green-900" onclick="exportarProjetoPDF('${projeto.id}')" aria-label="Exportar projeto para PDF">
                                 <i class="fas fa-file-pdf"></i>
                             </button>
                         </td>
@@ -1195,6 +1206,20 @@
 
                     tabelaProjetos.insertBefore(tr, semProjetos);
                 });
+            }
+            
+                // Função para excluir um projeto salvo
+            function excluirProjeto(id) {
+                const idx = db.projetos.findIndex(p => p.id === id);
+                if (idx === -1) return;
+
+                const confirmMsg = 'Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.';
+                if (!confirm(confirmMsg)) return;
+
+                db.projetos.splice(idx, 1);
+                localStorage.setItem('projetos', JSON.stringify(db.projetos));
+                atualizarTabelaProjetos();
+                atualizarDashboard();
             }
             
             function atualizarDashboard() {
@@ -1664,6 +1689,15 @@
                 const projeto = db.projetos.find(p => p.id === id);
                 if (!projeto) return;
                 
+                resultadosCalculados = projeto;
+                mostrarPreviewPDF();
+            };
+
+            // Mostrar relatório de custo (reutiliza a pré-visualização PDF)
+            window.mostrarRelatorioCusto = function(id) {
+                const projeto = db.projetos.find(p => p.id === id);
+                if (!projeto) return;
+
                 resultadosCalculados = projeto;
                 mostrarPreviewPDF();
             };
