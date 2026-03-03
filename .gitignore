@@ -1,0 +1,45 @@
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor/IDE
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build outputs / caches
+dist/
+build/
+coverage/
+.cache/
+.parcel-cache/
+.turbo/
+.next/
+out/
+tmp/
+temp/
+
+# App backups
+3d-print-manager-backup-*.json
