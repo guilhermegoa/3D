@@ -182,8 +182,8 @@
                                     </div>
                                     
                                     <div class="input-group">
-                                        <label for="tempoProd" class="block text-sm font-medium text-gray-700 mb-1">Tempo de Produção (horas)</label>
-                                        <input type="number" id="tempoProd" min="0" step="0.1" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <label for="tempoProd" class="block text-sm font-medium text-gray-700 mb-1">Tempo de Produção (minutos)</label>
+                                        <input type="number" id="tempoProd" min="0" step="1" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                     </div>
                                     
                                     <div class="input-group">
@@ -529,8 +529,8 @@
                         </div>
                         
                         <div class="bg-white rounded-lg shadow-lg p-6">
-                            <h3 class="text-sm font-medium text-gray-500">Horas de Impressão</h3>
-                            <p class="text-3xl font-bold text-blue-600 mt-2" id="horasImpressao">0h</p>
+                            <h3 class="text-sm font-medium text-gray-500">Minutos de Impressão</h3>
+                            <p class="text-3xl font-bold text-blue-600 mt-2" id="horasImpressao">0min</p>
                             <div class="mt-2 text-sm text-gray-600">
                                 <span class="text-green-500"><i class="fas fa-arrow-up"></i> 15%</span> desde o mês passado
                             </div>
@@ -601,7 +601,7 @@
                                 <p><span class="font-medium">Impressora:</span> <span id="pdfImpressora">-</span></p>
                             </div>
                             <div>
-                                <p><span class="font-medium">Tempo de Produção:</span> <span id="pdfTempoProd">-</span> horas</p>
+                                <p><span class="font-medium">Tempo de Produção:</span> <span id="pdfTempoProd">-</span> minutos</p>
                                 <p><span class="font-medium">Peso da Peça:</span> <span id="pdfPesoPeca">-</span> gramas</p>
                                 <p><span class="font-medium">Data do Orçamento:</span> <span id="pdfDataOrcamento">-</span></p>
                             </div>
@@ -1001,8 +1001,9 @@
                 
                 // Calcular custos diretos
                 const custoFilamentoTotal = (pesoPeca / 1000) * custoFilamento;
-                const custoEnergia = (potenciaImpressora / 1000) * tempoProd * precoKwh;
-                const custoAmortizacaoTotal = custoAmortizacao * tempoProd;
+                const tempoProdHoras = tempoProd / 60;
+                const custoEnergia = (potenciaImpressora / 1000) * tempoProdHoras * precoKwh;
+                const custoAmortizacaoTotal = custoAmortizacao * tempoProdHoras;
 
                 // Custos adicionais dinâmicos (do formulário)
                 const { adicionais, total: custoAdicionaisTotal } = coletarCustosAdicionais();
@@ -1274,7 +1275,7 @@
                 
                 // Atualizar horas utilizadas da impressora
                 if (impressora) {
-                    impressora.horasUtilizadas += resultadosCalculados.tempoProd;
+                    impressora.horasUtilizadas += resultadosCalculados.tempoProd / 60;
                     localStorage.setItem('impressoras', JSON.stringify(db.impressoras));
                     atualizarListaImpressoras();
                 }
@@ -1375,7 +1376,7 @@
                 if (db.projetos.length === 0) {
                     document.getElementById('totalProjetos').textContent = '0';
                     document.getElementById('faturamentoTotal').textContent = 'R$ 0,00';
-                    document.getElementById('horasImpressao').textContent = '0h';
+                    document.getElementById('horasImpressao').textContent = '0min';
                     document.getElementById('filamentoUtilizado').textContent = '0kg';
                     return;
                 }
@@ -1383,12 +1384,12 @@
                 // Calcular estatísticas
                 const totalProjetos = db.projetos.length;
                 const faturamentoTotal = db.projetos.reduce((total, projeto) => total + projeto.precoVenda, 0);
-                const horasImpressao = db.projetos.reduce((total, projeto) => total + projeto.tempoProd, 0);
+                const minutosImpressao = db.projetos.reduce((total, projeto) => total + projeto.tempoProd, 0);
                 const filamentoUtilizado = db.projetos.reduce((total, projeto) => total + projeto.pesoPeca, 0) / 1000;
                 
                 document.getElementById('totalProjetos').textContent = totalProjetos;
                 document.getElementById('faturamentoTotal').textContent = formatarMoeda(faturamentoTotal);
-                document.getElementById('horasImpressao').textContent = horasImpressao.toFixed(1) + 'h';
+                document.getElementById('horasImpressao').textContent = minutosImpressao.toFixed(0) + 'min';
                 document.getElementById('filamentoUtilizado').textContent = filamentoUtilizado.toFixed(2) + 'kg';
                 
                 // Criar gráficos
@@ -1568,7 +1569,7 @@
                             },
                             title: {
                                 display: true,
-                                text: 'Horas de Uso por Impressora'
+                                text: 'Minutos de Uso por Impressora'
                             }
                         }
                     }
